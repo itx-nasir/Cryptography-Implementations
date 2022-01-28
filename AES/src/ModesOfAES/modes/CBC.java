@@ -4,79 +4,58 @@ package ModesOfAES;
  * functionality of mode of AES named CIPHER BLOCK CHAINING MODE
  */
 
-public class CBC extends AES /* why extends because it uses the same functionality   of AES
+import java.security.SecureRandom;
+import java.util.Arrays;
+
+/**
+ * Cipher Block Chaining (CBC) mode implementation of AES.
+ * Each block is XORed with the previous ciphertext block before encryption.
+ */
+public class CBC extends AESBlockCipher /* why extends because it uses the same functionality   of AES
                               */
 {                            
 	@Override
-	public String Encryption(String PlainText, String Key) 
-	{
-		if(Key.length()<16)
-		{
-			Key=KeyPadding(Key);
-		}
-		 String [][]Mix= {{"02","03","01","01"},
-		   			{"01","02","03","01"},
-		   			{"01","01","02","03"},
-		   			{"03","01","01","02"}
-					}; /* standard matrix required for the mix column operation*/
-		try
-		{	/*
-		      In CBC we have following steps
-		      1 - need initial vector
-		      2- divide data into block
-		      3- key operation
-		     */
-			GenerateIV();
-			SplitIntoBlocks(PlainText);
-			String KeyInHex=Utility.TexttoHEX(Key);
-			String [][]W; // word
-			String [][]iv;
-			W=Utility.StringTo2DArray(KeyInHex);
-			iv=Utility.StringTo2DArray(IV);
-			RoundKeys[0]=W;
-			for(int i=1;i<=10;i++)
-			{	
-				GenerateKey(RoundKeys[i-1],i); /* using function of AES*/
-			}
-			for(int i=0;i<=10;i++)
-			{	
-				RoundKeys[i]=Utility.TransposeMatrix(RoundKeys[i]);
-			}
-			iv=Utility.TransposeMatrix(iv); // transpose of matrix
-			String [][]Resultant=iv;
+	public String encrypt(String plainText, String key) {
+		try {
+			validateInput(plainText, key);
+			String paddedKey = padKey(key);
+			generateIV();
 			
-			for(int m=0;m<PT_Blocks.length;m++)
-			{
-				String [][]PT;
-				
-				PT=Utility.StringTo2DArray(PT_Blocks[m]);
-				PT=Utility.TransposeMatrix(PT);
-				
-				//for XORING two matrices
-				Resultant=AddRoundKey(PT,Resultant);
-				Resultant=AddRoundKey(RoundKeys[0],Resultant);
-				for(int i=1;i<=10;i++)
-				{	SubstituteByte(Resultant,S_Box);
-					for(int k=0;k<4;k++)
-					{
-						leftRotate(Resultant[k],k);
-					}
-
-					if(i!=10)
-					{
-						Resultant=MixColumn(Mix,Resultant); // mix column
-					}
-					Resultant=AddRoundKey(RoundKeys[i],Resultant);
-				}
-				CipherText+=Utility.HextoText(Resultant); // generating cipher text
+			// Initialize
+			String[][] ivMatrix = Utility.StringTo2DArray(iv);
+			String[][] keyMatrix = Utility.StringTo2DArray(Utility.TexttoHEX(paddedKey));
+			
+			// Generate round keys
+			generateRoundKeys(keyMatrix);
+			
+			// Process blocks
+			String[][] previousBlock = ivMatrix;
+			for (String block : splitIntoBlocks(plainText)) {
+				String[][] blockMatrix = Utility.StringTo2DArray(block);
+				String[][] xoredBlock = AddRoundKey(blockMatrix, previousBlock);
+				String[][] encryptedBlock = encryptBlock(xoredBlock, roundKeys[0]);
+				cipherText += Utility.HextoText(encryptedBlock);
+				previousBlock = encryptedBlock;
 			}
+			
+			return cipherText;
+		} catch (Exception e) {
+			throw new AESException("CBC encryption failed", e);
 		}
-		/*Encryption Done here*/
-	   catch(Exception e)
-		{
-			System.out.print(e);
+	}
+
+	private String processBlocks(String plainText, String[][] previousBlock) {
+		StringBuilder result = new StringBuilder();
+		String[] blocks = splitIntoBlocks(plainText);
+		
+		for (String block : blocks) {
+			String[][] blockMatrix = prepareBlock(block);
+			String[][] encrypted = encryptBlock(blockMatrix, previousBlock);
+			result.append(matrixToHex(encrypted));
+			previousBlock = encrypted;
 		}
-		return null;
+		
+		return result.toString();
 	}
 
 	@Override

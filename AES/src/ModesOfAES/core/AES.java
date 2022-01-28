@@ -10,9 +10,24 @@ package ModesOfAES.core;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Random;
+import java.security.SecureRandom;
 
-abstract class AES 
-{	protected String [][][]RoundKeys;
+/**
+ * Abstract base class for AES encryption implementation.
+ * Provides core functionality for all AES modes of operation.
+ */
+abstract class AES implements AESOperation {
+	protected static final int BLOCK_SIZE = 16;
+	protected static final int NUM_ROUNDS = 10;
+	
+	protected static final String[][] MIX_COLUMNS_MATRIX = {
+		{"02","03","01","01"},
+		{"01","02","03","01"},
+		{"01","01","02","03"},
+		{"03","01","01","02"}
+	};
+	
+	protected String [][][]RoundKeys;
 	String IV="";
 	protected String Decrypted="";  /* contains the plain text*/
 	protected String CipherText="";  /* contains the cipher text*/
